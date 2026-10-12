@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ConnectF · Khởi chạy</title>
+  <hta:application
+    id="connectfLauncher"
+    applicationname="ConnectF Launcher"
+    border="thin"
+    caption="yes"
+    maximizebutton="no"
+    minimizebutton="yes"
+    scroll="no"
+    singleinstance="yes"
+    sysmenu="yes"
+    windowstate="normal" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #f4f4fc;
+      color: #172138;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .card {
+      width: 430px;
+      padding: 38px 38px 30px;
+      border: 1px solid #ececf5;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 22px 70px rgba(38, 43, 83, .12);
+      text-align: center;
+    }
+    .logo {
+      display: inline-flex;
+      width: 54px;
+      height: 54px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 15px;
+      border-radius: 18px;
+      background: #5b5ce2;
+      color: white;
+      font-size: 30px;
+      font-weight: 800;
+      box-shadow: 0 9px 22px rgba(91, 92, 226, .27);
+    }
+    .brand { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.7px; }
+    .brand span { color: #5b5ce2; }
+    .tagline { margin: 7px 0 30px; color: #8b95a7; font-size: 13px; }
+    .status-icon {
+      display: flex;
+      width: 76px;
+      height: 76px;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 17px;
+      border: 1px solid #e9e8ff;
+      border-radius: 25px;
+      background: #f3f2ff;
+      color: #5b5ce2;
+      font-size: 30px;
+    }
+    .spinner {
+      width: 29px;
+      height: 29px;
+      border: 3px solid #deddfc;
+      border-top-color: #5b5ce2;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { margin: 0; font-size: 19px; font-weight: 750; }
+    .description {
+      min-height: 38px;
+      margin: 9px auto 21px;
+      color: #858ea1;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .progress-track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #efeff7;
+    }
+    .progress-bar {
+      width: 36%;
+      height: 100%;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #7778ed, #5859dc);
+      animation: loading 1.45s ease-in-out infinite;
+    }
+    @keyframes loading {
+      0% { margin-left: -36%; }
+      50% { margin-left: 34%; }
+      100% { margin-left: 100%; }
+    }
+    .hint { margin: 11px 0 0; color: #a1a9b7; font-size: 11px; }
+    .actions { display: none; margin-top: 19px; }
+    button {
+      min-height: 42px;
+      padding: 0 17px;
+      border: 0;
+      border-radius: 12px;
+      background: #5b5ce2;
+      color: white;
+      cursor: pointer;
+      font: 600 13px "Segoe UI", Arial, sans-serif;
+    }
+    button.secondary { margin-left: 7px; background: #f0f0f7; color: #555f73; }
+    button:hover { opacity: .9; }
+    .footer { margin-top: 27px; color: #b1b7c3; font-size: 10px; }
+    .error .status-icon { border-color: #ffe4e4; background: #fff3f3; color: #df5353; }
+    .error .progress-track, .ready .progress-track { display: none; }
+    .ready .status-icon { border-color: #d9f2e7; background: #eefaf4; color: #27a36c; }
+    .ready .spinner { display: none; }
+    .ready .status-icon:after { content: "✓"; font-size: 34px; font-weight: 700; }
+  </style>
+  <script language="javascript">
+    var appUrl = "http://127.0.0.1:8081";
+    var logPath = "";
+    var statusPath = "";
+    var shell = new ActiveXObject("WScript.Shell");
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+    var timer = null;
+    var startedAt = 0;
+    var statusTimer = null;
+    var statusMessages = [
+      "Đang build giao diện của ConnectF...",
+      "Đang chuẩn bị giao diện và máy chủ...",
+      "Đang khởi động máy chủ local...",
+      "Đang chờ ConnectF sẵn sàng..."
+    ];
+
+    function appDirectory() {
+      var path = decodeURIComponent(window.location.pathname);
+      path = path.replace(/^\/([A-Za-z]:)/, "$1").replace(/\//g, "\\");
+      return path.substring(0, path.lastIndexOf("\\"));
+    }
+
+    function setStatus(title, description, state) {
+      document.getElementById("title").innerText = title;
+      document.getElementById("description").innerText = description;
+      document.getElementById("card").className = "card " + (state || "");
+    }
+
+    function startServices() {
+      if (timer) window.clearInterval(timer);
+      if (statusTimer) window.clearInterval(statusTimer);
+      document.getElementById("actions").style.display = "none";
+      document.getElementById("spinner").style.display = "block";
+      document.getElementById("progress").style.display = "block";
+      setStatus("Đang khởi chạy ConnectF", "Đang chuẩn bị môi trường chạy local. Không cần Docker hoặc MongoDB.", "");
+
+      logPath = shell.ExpandEnvironmentStrings("%TEMP%") + "\\ConnectF-start.log";
+      statusPath = shell.ExpandEnvironmentStrings("%TEMP%") + "\\ConnectF-start-status.txt";
+      if (fso.FileExists(statusPath)) fso.DeleteFile(statusPath, true);
+      var scriptPath = appDirectory() + "\\scripts\\start-local.ps1";
+      try {
+        shell.Run('powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + scriptPath + '"', 0, false);
+      } catch (error) {
+        showFailure("Không thể chạy trình khởi chạy", "Hãy kiểm tra Windows PowerShell đã được bật trên máy tính.");
+        return;
+      }
+
+      startedAt = new Date().getTime();
+      var messageIndex = 0;
+      statusTimer = window.setInterval(function () {
+        if (document.getElementById("card").className.indexOf("error") >= 0) return;
+        setStatus("Đang khởi chạy ConnectF", statusMessages[messageIndex % statusMessages.length], "");
+        messageIndex++;
+      }, 9000);
+      timer = window.setInterval(checkHealth, 2000);
+      checkHealth();
+    }
+
+    function checkHealth() {
+      if (fso.FileExists(statusPath)) {
+        var statusFile = fso.OpenTextFile(statusPath, 1);
+        var launchStatus = statusFile.ReadAll();
+        statusFile.Close();
+        if (launchStatus.indexOf("failed|") === 0) {
+          showFailure("Không thể khởi chạy ConnectF", launchStatus.substring(7).replace(/[\r\n]/g, ""));
+          return;
+        }
+        if (launchStatus.indexOf("building") === 0) {
+          setStatus("Đang khởi chạy ConnectF", "Đang build giao diện và mở máy chủ local trong nền.", "");
+        } else if (launchStatus.indexOf("checking") === 0) {
+          setStatus("Đang kiểm tra môi trường", "Đang kiểm tra Node.js và cấu hình cần thiết.", "");
+        }
+      }
+      var request = new ActiveXObject("MSXML2.XMLHTTP");
+      request.onreadystatechange = function () {
+        if (request.readyState !== 4) return;
+        if (request.status === 200 && request.responseText.indexOf('"status":"ok"') >= 0) {
+          window.clearInterval(timer);
+          window.clearInterval(statusTimer);
+          setStatus("ConnectF đã sẵn sàng!", "Mọi dịch vụ đã chạy. Ứng dụng sẽ được mở trong trình duyệt.", "ready");
+          window.setTimeout(function () { shell.Run(appUrl, 1, false); }, 700);
+          document.getElementById("actions").style.display = "block";
+          document.getElementById("retry").innerText = "Mở ConnectF";
+          document.getElementById("retry").onclick = function () { shell.Run(appUrl, 1, false); };
+          return;
+        }
+        if (new Date().getTime() - startedAt > 900000) {
+          window.clearInterval(timer);
+          window.clearInterval(statusTimer);
+          showFailure("Khởi chạy mất nhiều thời gian", "Hãy kiểm tra nhật ký khởi chạy và nhật ký máy chủ local, sau đó thử lại.");
+        }
+      };
+      try { request.open("GET", appUrl + "/health?time=" + new Date().getTime(), true); request.send(); }
+      catch (error) {
+        showFailure("Không thể kiểm tra trạng thái", "Không thể kết nối với bộ kiểm tra khởi chạy của ConnectF.");
+      }
+    }
+
+    function showFailure(title, description) {
+      if (timer) window.clearInterval(timer);
+      if (statusTimer) window.clearInterval(statusTimer);
+      document.getElementById("spinner").style.display = "none";
+      setStatus(title, description, "error");
+      document.getElementById("actions").style.display = "block";
+      document.getElementById("retry").innerText = "Thử khởi chạy lại";
+      document.getElementById("retry").onclick = startServices;
+    }
+
+    function openLog() {
+      if (fso.FileExists(logPath)) shell.Run('notepad.exe "' + logPath + '"', 1, false);
+      else shell.Run("notepad.exe", 1, false);
+      var serverLog = shell.ExpandEnvironmentStrings("%TEMP%") + "\\ConnectF-server-error.log";
+      if (fso.FileExists(serverLog)) shell.Run('notepad.exe "' + serverLog + '"', 1, false);
+    }
+
+    window.onload = function () {
+      window.resizeTo(520, 630);
+      window.moveTo((screen.availWidth - 520) / 2, (screen.availHeight - 630) / 2);
+      startServices();
+    };
+  </script>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="logo">c</div>
+    <p class="brand">connect<span>f</span></p>
+    <p class="tagline">Gần nhau hơn, dù ở bất cứ đâu.</p>
+    <div class="status-icon"><div class="spinner" id="spinner"></div></div>
+    <h1 id="title">Đang khởi chạy ConnectF</h1>
+    <p class="description" id="description">Đang chuẩn bị môi trường chạy. Cửa sổ lệnh được ẩn trong quá trình này.</p>
+    <div class="progress-track" id="progress"><div class="progress-bar"></div></div>
+    <p class="hint">Không cần Docker. Cần Node.js và dependencies đã cài sẵn.</p>
+    <div class="actions" id="actions">
+      <button id="retry" onclick="startServices()">Thử khởi chạy lại</button>
+      <button class="secondary" onclick="openLog()">Xem nhật ký</button>
+    </div>
+    <p class="footer">ConnectF · Chat &amp; video meetings</p>
+  </div>
+</body>
+</html>
