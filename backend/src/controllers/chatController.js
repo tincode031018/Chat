@@ -1,7 +1,19 @@
 const Message = require('../models/Message');
+const Group = require('../models/Group');
+const mongoose = require('mongoose');
+const { isDirectChatParticipant } = require('../services/chatRoomAccess');
+
+async function canAccessRoom(userId, roomId) {
+  if (isDirectChatParticipant(userId, roomId)) return true;
+  if (!mongoose.isValidObjectId(roomId)) return false;
+  return Boolean(await Group.exists({ _id: roomId, members: userId }));
+}
 
 async function getMessages(req, res, next) {
   try {
+    if (!await canAccessRoom(req.user._id, req.params.roomId)) {
+      return res.status(403).json({ message: 'Bạn không có quyền truy cập cuộc trò chuyện này.' });
+    }
     const messages = await Message.find({ roomId: req.params.roomId })
       .sort({ createdAt: -1 }).limit(100).populate('sender', 'username avatar');
     return res.json(messages.reverse());
@@ -16,6 +28,9 @@ async function sendMessage(req, res, next) {
     const content = String(req.body.content || '').trim();
     const type = req.body.type || 'text';
     const fileName = String(req.body.fileName || '').slice(0, 255);
+    if (!await canAccessRoom(req.user._id, roomId)) {
+      return res.status(403).json({ message: 'Bạn không có quyền truy cập cuộc trò chuyện này.' });
+    }
     if (!roomId || roomId.length > 120 || !content || content.length > 2_500_000) {
       return res.status(400).json({ message: 'Phòng chat hoặc nội dung tin nhắn không hợp lệ.' });
     }

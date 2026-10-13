@@ -6,7 +6,7 @@ $logPath = Join-Path $env:TEMP 'ConnectF-start.log'
 $serverLogPath = Join-Path $env:TEMP 'ConnectF-server.log'
 $serverErrorPath = Join-Path $env:TEMP 'ConnectF-server-error.log'
 $serverPath = Join-Path $projectDirectory 'backend\src\localServer.js'
-$serverVersion = '2026-10-12-interactions-1'
+$serverVersion = '2026-10-13-room-access-1'
 $port = 8081
 $healthUrl = "http://127.0.0.1:$port/health"
 

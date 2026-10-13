@@ -60,12 +60,17 @@ export default function ChatRoom({ onOpenMenu, onStartMeeting, conversation }) {
 
   useEffect(() => {
     if (!socket) return undefined;
-    socket.connect();
-    socket.emit('chat:join', activeRoom);
     socket.on('chat:message', message => {
       if (message.roomId === activeRoom) dispatch(addMessage(message));
     });
-    return () => { socket.disconnect(); };
+    socket.on('chat:error', response => setError(response.message));
+    socket.connect();
+    socket.emit('chat:join', activeRoom);
+    return () => {
+      socket.off('chat:message');
+      socket.off('chat:error');
+      socket.disconnect();
+    };
   }, [activeRoom, dispatch, socket]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);

@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const { randomUUID, randomBytes } = require('crypto');
 const { Server } = require('socket.io');
 const logger = require('./config/logger');
+const { isDirectChatParticipant } = require('./services/chatRoomAccess');
 
 const app = express();
 const server = http.createServer(app);
@@ -74,7 +75,7 @@ async function authenticate(req, res, next) {
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '3mb' }));
-app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'connectf-local', version: '2026-10-12-interactions-1' }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'connectf-local', version: '2026-10-13-room-access-1' }));
 
 app.post(['/auth/register', '/api/auth/register'], async (req, res, next) => {
   try {
@@ -122,6 +123,9 @@ app.post(['/auth/login', '/api/auth/login'], async (req, res, next) => {
 });
 
 app.get(['/chat/:roomId', '/api/chat/:roomId'], authenticate, (req, res) => {
+  const directMember = isDirectChatParticipant(req.user.id, req.params.roomId);
+  const groupMember = req.store.groups.some(group => group._id === req.params.roomId && group.members.includes(req.user.id));
+  if (!directMember && !groupMember) return res.status(403).json({ message: 'Bạn không có quyền truy cập cuộc trò chuyện này.' });
   const messages = req.store.messages.filter(message => message.roomId === req.params.roomId).slice(-100);
   return res.json(messages.map(message => ({
     ...message,
@@ -136,6 +140,9 @@ app.post(['/chat/send', '/api/chat/send'], authenticate, (req, res) => {
   if (!roomId || roomId.length > 120 || !content || content.length > 2_500_000) {
     return res.status(400).json({ message: 'Phòng chat hoặc nội dung tin nhắn không hợp lệ.' });
   }
+  const directMember = isDirectChatParticipant(req.user.id, roomId);
+  const groupMember = req.store.groups.some(group => group._id === roomId && group.members.includes(req.user.id));
+  if (!directMember && !groupMember) return res.status(403).json({ message: 'Bạn không có quyền truy cập cuộc trò chuyện này.' });
   if (!['text', 'image', 'file', 'voice'].includes(type)) {
     return res.status(400).json({ message: 'Loại tin nhắn không hợp lệ.' });
   }
@@ -300,7 +307,15 @@ io.use(async (socket, next) => {
 
 io.on('connection', socket => {
   socket.on('chat:join', roomId => {
-    if (typeof roomId === 'string' && roomId.length <= 120) socket.join(roomId);
+    if (typeof roomId !== 'string' || roomId.length > 120) {
+      socket.emit('chat:error', { message: 'Mã cuộc trò chuyện không hợp lệ.' });
+      return;
+    }
+    const store = readStore();
+    const directMember = isDirectChatParticipant(socket.userId, roomId);
+    const groupMember = store.groups.some(group => group._id === roomId && group.members.includes(socket.userId));
+    if (directMember || groupMember) socket.join(roomId);
+    else socket.emit('chat:error', { message: 'Bạn không có quyền truy cập cuộc trò chuyện này.' });
   });
 });
 

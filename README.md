@@ -53,7 +53,14 @@ The backend emits structured JSON logs with Winston. For non-Docker deployments,
 
 ## Public deployment
 
-Pushing this repository to GitHub stores the source code; it does not host the Express API or MongoDB. The included Docker Compose setup is for running the complete stack on a machine you control, and the provided Nginx configuration does not enable HTTPS. Before exposing it publicly, configure a domain and HTTPS, a production MongoDB connection with backups, a strong private `JWT_SECRET`, and the correct `CLIENT_ORIGIN`. Never commit `.env` or production secrets.
+The repository includes [`render.yaml`](./render.yaml) for deploying a single HTTPS web service on Render. The Docker image builds the React app and serves it alongside the Express API and Socket.IO from one origin. MongoDB is hosted separately on MongoDB Atlas.
+
+1. Create an Atlas cluster and database user. Copy its `mongodb+srv://...` connection string and replace the placeholder username/password with the database user's credentials.
+2. In Render, choose **New → Blueprint**, connect this GitHub repository, and deploy the `render.yaml` blueprint. Render generates `JWT_SECRET` and securely prompts for `MONGODB_URI`; enter the Atlas connection string as a secret, including the database name `connectf`.
+3. After Render creates the service, open its **Connect → Outbound** tab and add the listed IP ranges to Atlas **Network Access**. If the first deployment cannot reach MongoDB, redeploy after allowing those ranges. Avoid `0.0.0.0/0`.
+4. Wait for Render's deployment and `/health` check to succeed, then open the HTTPS URL Render assigns to the `connectf` service. New commits pushed to the connected branch deploy automatically.
+
+Render's free web services may sleep when idle, so the first request can take longer. Never put the Atlas URI, passwords, or other secrets in GitHub files. GitHub stores the source and runs CI; it does not host MongoDB.
 
 The sidebar no longer contains sample conversations or accounts. Users can find registered accounts by username, start a direct chat, and see groups they actually belong to.
 
@@ -61,4 +68,4 @@ The sidebar no longer contains sample conversations or accounts. Users can find 
 
 This is a runnable product foundation, not a production-complete Zalo/Zoom replacement. Authentication, password hashing, profile updates, group creation/admin checks, password-protected meeting creation, persisted chat messages, and Socket.IO chat delivery are implemented. Direct chats use a stable room ID derived from both users so the same conversation opens for either participant.
 
-The meeting screen does not yet connect remote participants: peer-to-peer WebRTC media/signaling and TURN support are not implemented. Local camera, microphone, screen capture, and recording controls only act on the current device. Chat attachments are sent as bounded data URLs rather than durable object storage. Chat is **not end-to-end encrypted**; do not use it for sensitive conversations. Meeting scheduling, breakout rooms, push notifications, group-member removal/admin transfer, HTTPS, production backups, and secret management remain deployment or product work.
+The meeting screen does not yet connect remote participants: peer-to-peer WebRTC media/signaling and TURN support are not implemented. Local camera, microphone, screen capture, and recording controls only act on the current device. Chat attachments are sent as bounded data URLs rather than durable object storage. Chat is **not end-to-end encrypted**; do not use it for sensitive conversations. Meeting scheduling, breakout rooms, push notifications, group-member removal/admin transfer, and production backups remain product/operations work.
