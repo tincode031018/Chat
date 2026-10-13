@@ -6,14 +6,6 @@ import Avatar from './Avatar';
 import { addMessage, setMessages } from '../store/chatSlice';
 import { api } from '../utils/api';
 
-const conversations = {
-  'minh-anh': { name: 'Minh Anh', online: true, sub: 'Đang hoạt động' },
-  'team-design': { name: 'Team Design', online: true, sub: '8 thành viên · 3 đang online', group: true },
-  'quang-huy': { name: 'Quang Huy', sub: 'Hoạt động 12 phút trước' },
-  'project-team': { name: 'Dự án ConnectF', sub: '12 thành viên · 4 đang online', group: true },
-  'thao-my': { name: 'Thảo My', online: true, sub: 'Đang hoạt động' }
-};
-
 const emojiChoices = ['😀', '😂', '😍', '👍', '❤️', '🎉', '🙏', '😮', '😢', '🔥', '✅', '👋'];
 
 function MessageBubble({ message, mine, avatar, sender }) {
@@ -54,8 +46,9 @@ export default function ChatRoom({ onOpenMenu, onStartMeeting, conversation }) {
   const recorder = useRef(null);
   const recorderStream = useRef(null);
   const recordingTimeout = useRef(null);
-  const room = conversation || conversations[activeRoom] || conversations['minh-anh'];
+  const room = conversation || { name: 'Cuộc trò chuyện' };
   const socket = useMemo(() => token ? io('/', { path: '/socket.io', auth: { token }, autoConnect: false }) : null, [token]);
+  const today = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'long' }).format(new Date());
 
   useEffect(() => {
     let mounted = true;
@@ -201,7 +194,7 @@ export default function ChatRoom({ onOpenMenu, onStartMeeting, conversation }) {
     </header>
     {detailsOpen && <div className="border-b border-[#e9edef] bg-[#fafbfb] px-4 py-3 sm:px-7"><div className="flex items-center gap-2"><Search size={16} className="text-muted" /><input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#9aa3ab]" onChange={event => setMessageSearch(event.target.value)} placeholder="Tìm tin nhắn hoặc tên tệp trong hội thoại" value={messageSearch} /><button aria-label="Đóng tìm kiếm" className="icon-button h-8 w-8" onClick={() => { setDetailsOpen(false); setMessageSearch(''); }}><X size={16} /></button></div><p className="mt-2 text-[11px] text-muted">{visibleMessages.length} tin nhắn{room.group ? ` · ${room.sub || 'Nhóm chat'}` : ''}</p></div>}
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-7">
-      <div className="mx-auto mb-6 rounded-full bg-[#f5f6f7] px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8d969f]">Hôm nay, 12 tháng 6</div>
+      <div className="mx-auto mb-6 rounded-full bg-[#f5f6f7] px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#8d969f]">Hôm nay, {today}</div>
       {messages.length === 0 && <div className="my-auto text-center text-sm text-muted">Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện nhé.</div>}
       <div className="mt-auto space-y-5">
         {visibleMessages.map((message, index) => <MessageBubble key={message._id || `${message.createdAt}-${index}`} message={message} mine={message.sender?._id === user?.id || message.sender?.id === user?.id || message.sender === user?.id} avatar={roomTitle} sender={room.group ? message.sender?.username : null} />)}

@@ -2,7 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const chatSlice = createSlice({
   name: 'chat',
-  initialState: { activeRoom: 'minh-anh', messages: [], conversations: [] },
+  initialState: { activeRoom: null, messages: [], conversations: [] },
   reducers: {
     setActiveRoom(state, action) { state.activeRoom = action.payload; },
     setMessages(state, action) { state.messages = action.payload; },

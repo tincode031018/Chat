@@ -45,7 +45,7 @@ export default function MeetingsPage({ token, creating, onCreate, onJoin }) {
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted">Tạo không gian để cả nhóm cùng trò chuyện. Mời mọi người bằng liên kết cuộc họp.</p>
           <button className="mt-6 flex h-12 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white hover:bg-indigo-600" disabled={creating} onClick={onCreate}><Video size={17} /> {creating ? 'Đang tạo...' : 'Bắt đầu cuộc họp'}</button>
         </div>
-        <div className="grid grid-cols-2 gap-3">{['L', 'M', 'Q', 'T'].map(initial => <div key={initial} className="grid h-28 place-items-center rounded-xl bg-[#f1f3f5]"><span className="grid h-12 w-12 place-items-center rounded-full bg-white text-sm font-semibold text-[#65727e]">{initial}</span></div>)}</div>
+        <div className="grid min-h-56 place-items-center rounded-2xl bg-[#f6f7f8] p-6 text-center"><div><Users className="mx-auto text-[#77838d]" size={28} /><p className="mt-3 max-w-xs text-sm leading-6 text-muted">Người tham gia thật sẽ xuất hiện tại đây khi vào phòng họp.</p></div></div>
       </div>
       <div className="mt-8 border-t border-[#f0f1f5] pt-6">
         <h3 className="mb-3 text-sm font-bold text-ink">Tham gia cuộc họp</h3>
